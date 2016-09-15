@@ -25,11 +25,11 @@ class WebPageMetadata:
     def __init__(self, url, pickleFile=None, etag=None, lastModified=None):
         self.url=url
         self.baseURL = urlparse.urljoin(url, ' ')[:-1]
-        if not pickleFile:        
+        if not pickleFile:
             pickleFile = self.digest() + '.pickle'
         self.pickleFile = pickleFile
         self.etag = etag
-        self.lastModified = lastModified    
+        self.lastModified = lastModified
 
     def digest(self):
         m = md5.new()
@@ -91,7 +91,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
                                          title='Error scraping this feed',
                                          description=description))
             self.writeRSS()
-            self.pickle()        
+            self.pickle()
         except urllib2.HTTPError, e:
             if e.code == 304:
                 #The page hasn't been modified. Doing nothing is exactly
@@ -108,7 +108,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
     def hasSeen(self, guid):
         "Returns true iff the given guid is already present in this feed."
         if isinstance(guid, Guid):
-            guid = guid.guid    
+            guid = guid.guid
         return self.currentGuids.get(guid, False)
 
     def addRSSItems(self, items):
@@ -118,15 +118,15 @@ class ScrapedFeed(RSS2, WebPageMetadata):
         the earliest such items will be shifted off the feed."""
         for i in items[::-1]:
             self.pushRSSItem(i)
-    
+
     def pushRSSItem(self, item):
         """Adds an RSS Item to the top of an RSS feed. If the
         resulting feed is longer than the maximum number of items, and
         some of those items were put on the feed in previous runs, the
-        earliest such item will be shifted off the feed."""        
+        earliest such item will be shifted off the feed."""
         if not getattr(item, 'guid') and item.link:
             item.guid = Guid(item.link)
-        if not getattr(item, 'pubDate'):        
+        if not getattr(item, 'pubDate'):
             item.pubDate = self.lastBuildDate
 
         #Stringify data from external sources (eg. Beautiful Soup) to
@@ -136,7 +136,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
             s = getattr(item, field, None)
             if s:
                 setattr(item, field, unicode(s))
-            
+
         if self.hasSeen(item.guid):
             #print "Checking for newer version of %s", item.guid.guid
             #This item is already in this feed. Replace it with the possibly
@@ -147,7 +147,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
                     #print "Updating possibly old version of %s" % item.guid.guid
                     self.items[i] = item
                     break
-        else:                        
+        else:
             #We haven't seen this item before, so the new one can go in.
             #print "Inserting ", item.guid.guid
             self.items.insert(0, item)
@@ -173,7 +173,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
         which actually creates the RSS feed out of a web page!"""
 
     def load(subclass, title, url, description, rssFile=None,
-             pickleFile=None, maxItems=20, refresh=True, **kwargs):    
+             pickleFile=None, maxItems=20, refresh=True, **kwargs):
         if pickleFile and os.path.exists(pickleFile):
             f = open(pickleFile, 'r')
             feed = pickle.load(f)
@@ -186,4 +186,4 @@ class ScrapedFeed(RSS2, WebPageMetadata):
         if refresh:
             feed.refresh()
         return feed
-    load = classmethod(load)    
+    load = classmethod(load)
