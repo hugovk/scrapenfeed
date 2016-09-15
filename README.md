@@ -38,14 +38,14 @@ This example generates [this RSS feed](https://www.crummy.com/software/ScrapeNFe
 
 ```python
 #!/usr/bin/env python
-import BeautifulSoup
+from bs4 import BeautifulSoup
 from PyRSS2Gen import RSSItem, Guid
 import ScrapeNFeed
 
 class OReillyFeed(ScrapeNFeed.ScrapedFeed):    
 
     def HTML2RSS(self, headers, body):
-        soup = BeautifulSoup.BeautifulSoup(body)
+        soup = BeautifulSoup(body, 'lxml')
         headerText = soup.firstText('Upcoming Titles')
         titleList = headerText.findNext('ul')
         items = []
