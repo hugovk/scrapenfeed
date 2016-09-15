@@ -79,7 +79,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
             response = self.fetch()
             headers = response.info()
             body = response.read()
-            self.lastBuildDate = datetime.datetime.now()
+            self.lastBuildDate = datetime.datetime.utcnow()
             try:
                 self.HTML2RSS(headers, body)
             except Exception, e:
