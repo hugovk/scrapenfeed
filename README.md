@@ -1,0 +1,2 @@
+# scrapenfeed
+Scrape 'N' Feed is a simple Python wrapper around the PyRSS2Gen module. It implements almost all of the code you need to create RSS feeds out of web pages. All you have to write is the code that actually does the screen-scraping (and Beautiful Soup makes that easy). It stores feed state in a pickle file between invocations, freeing you from having to worry about most of the minor problems that get in the way of scraping RSS feeds.
