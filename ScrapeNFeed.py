@@ -8,15 +8,22 @@ __copyright__ = "Copyright (c) 2005 Leonard Richardson"
 __license__ = "PSF"
 
 import datetime
-import md5
+import hashlib
 import os
 import pickle
 import time
 import traceback
-import urllib2
-import urlparse
-from StringIO import StringIO
+import urllib
+from urllib.parse import urlparse, urljoin
+from io import BytesIO
 from PyRSS2Gen import RSS2, RSSItem, Guid
+
+hdr = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11',
+       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+       'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3',
+       'Accept-Encoding': 'none',
+       'Accept-Language': 'en-US,en;q=0.8',
+       'Connection': 'keep-alive'}
 
 class WebPageMetadata:
     """Keeps track of the most recent Last-Modified and Etag headers
@@ -24,7 +31,7 @@ class WebPageMetadata:
 
     def __init__(self, url, pickleFile=None, etag=None, lastModified=None):
         self.url=url
-        self.baseURL = urlparse.urljoin(url, ' ')[:-1]
+        self.baseURL = urljoin(url, ' ')[:-1]
         if not pickleFile:
             pickleFile = self.digest() + '.pickle'
         self.pickleFile = pickleFile
@@ -32,24 +39,24 @@ class WebPageMetadata:
         self.lastModified = lastModified
 
     def digest(self):
-        m = md5.new()
+        m = hashlib.md5.new()
         m.update(self.url)
         return m.hexdigest()
 
     def pickle(self):
-        s = StringIO()
+        s = BytesIO()
         pickle.dump(self, s)
-        f = open(self.pickleFile, 'w')
+        f = open(self.pickleFile, 'wb')
         f.write(s.getvalue())
         f.close()
 
     def fetch(self):
-        request = urllib2.Request(self.url)
+        request = urllib.request.Request(self.url, headers=hdr)
         if self.etag:
             request.add_header('If-None-Match', self.etag)
         if self.lastModified:
             request.add_header('If-Modified-Since', self.lastModified)
-        response = urllib2.urlopen(request)
+        response = urllib.request.urlopen(request)
 
         headers = response.info()
         self.etag = headers.get('ETag', None)
@@ -79,20 +86,20 @@ class ScrapedFeed(RSS2, WebPageMetadata):
             response = self.fetch()
             headers = response.info()
             body = response.read()
-            self.lastBuildDate = datetime.datetime.utcnow()
+            self.lastBuildDate = datetime.datetime.now()
             try:
                 self.HTML2RSS(headers, body)
-            except Exception, e:
+            except Exception as e:
                 #Put the exception into the RSS feed.
                 import sys
-                exception = traceback.format_tb(sys.exc_traceback)
+                exception = traceback.format_tb(e.__traceback__)
                 description="<p>Unable to finish scraping this webpage into a feed. Please get the person in charge of maintaining the scraped feed (<i>not</i> the person in charge of the original website) to fix this.</p> <p>Stack trace:</p> <pre>%s%s</pre>" % ('\n'.join(exception), e)
                 self.pushRSSItem(RSSItem(link=self.url + '#' + str(time.time()),
                                          title='Error scraping this feed',
                                          description=description))
             self.writeRSS()
             self.pickle()
-        except urllib2.HTTPError, e:
+        except urllib.error.HTTPError as e:
             if e.code == 304:
                 #The page hasn't been modified. Doing nothing is exactly
                 #the right thing to do.
@@ -101,7 +108,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
                 raise e
 
     def writeRSS(self):
-        f = open(self.rssFile, 'w')
+        f = open(self.rssFile, 'wb')
         self.write_xml(f)
         f.close()
 
@@ -135,7 +142,7 @@ class ScrapedFeed(RSS2, WebPageMetadata):
                       'comments',' source'):
             s = getattr(item, field, None)
             if s:
-                setattr(item, field, unicode(s))
+                setattr(item, field, str(s))
 
         if self.hasSeen(item.guid):
             #print "Checking for newer version of %s", item.guid.guid
@@ -169,13 +176,13 @@ class ScrapedFeed(RSS2, WebPageMetadata):
         to see whether or not to bother creating a particular
         RSSItem that might already be in the feed."""
 
-        raise Exception, """Hey buddy! You forgot to override the HTML2RSS method
-        which actually creates the RSS feed out of a web page!"""
+        raise Exception("""Hey buddy! You forgot to override the HTML2RSS method
+        which actually creates the RSS feed out of a web page!""")
 
     def load(subclass, title, url, description, rssFile=None,
              pickleFile=None, maxItems=20, refresh=True, **kwargs):
         if pickleFile and os.path.exists(pickleFile):
-            f = open(pickleFile, 'r')
+            f = open(pickleFile, 'rb')
             feed = pickle.load(f)
             feed.title = title
             feed.description = description
